@@ -161,14 +161,10 @@ public:
             return pRet;
         }
         static void ReleaseCircle(Circle* pCircle) {
-            Traits::free(pCircle);
-        }
-        Circle() {
-        }
-        ~Circle() {
-            if (m_pPool) {
-                Traits::free(m_pPool);
+            if (pCircle->m_pPool) {
+                Traits::free(pCircle->m_pPool);
             }
+            Traits::free(pCircle);
         }
         inline int PushPosition(const T& value, uint32_t nPreWriteIndex) {
             uint32_t nGetBeginIndex = m_nBeginIndex;

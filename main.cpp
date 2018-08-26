@@ -79,12 +79,12 @@ bool BenchmarkQueueTime(Queue& q, int nTotalTimes, int nPushThread, int nPopThre
 }
 
 int main(int argc, char* argv[]){
-    int nTimes = 5;
+    int nTimes = 3;
     int nRepeatTimes = 5;
     int nMinThread = 4;
     int nMaxThread = 8;
     //Ä¬ÈÏ1·ÖÖÓ
-    int nHeavyTestTime = 60 * 1000;
+    int nHeavyTestTime = 10 * 1000;
     if (argc >= 2) {
         argv[1];
     }
