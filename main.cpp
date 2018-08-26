@@ -79,27 +79,29 @@ bool BenchmarkQueueTime(Queue& q, int nTotalTimes, int nPushThread, int nPopThre
 }
 
 int main(int argc, char* argv[]){
+    int nTimes = 5;
+    int nRepeatTimes = 5;
+    int nMinThread = 4;
+    int nMaxThread = 8;
+    //默认1分钟
+    int nHeavyTestTime = 60 * 1000;
+    if (argc >= 2) {
+        argv[1];
+    }
+    if (nTimes <= 0 || nTimes > 100)
+        nTimes = 3;
+    if (nRepeatTimes <= 0 || nRepeatTimes >= 100)
+        nRepeatTimes = 5;
+    if (nMinThread <= 0 || nMinThread >= 32)
+        nMinThread = 1;
+    if (nMaxThread <= 0 || nMaxThread >= 256)
+        nMaxThread = 8;
+    if (nHeavyTestTime < 1000)
+        nHeavyTestTime = 60 * 1000;
+    
+    for(int i = 0;i < 100;i++)
     {
         CCLockfreeQueue<ctx_message> basicQueue;
-        int nTimes = 5;
-        int nRepeatTimes = 5;
-        int nMinThread = 4;
-        int nMaxThread = 8;
-        //默认1分钟
-        int nHeavyTestTime = 60 * 1000;
-        if (argc >= 2) {
-            argv[1];
-        }
-        if (nTimes <= 0 || nTimes > 100)
-            nTimes = 3;
-        if (nRepeatTimes <= 0 || nRepeatTimes >= 100)
-            nRepeatTimes = 5;
-        if (nMinThread <= 0 || nMinThread >= 32)
-            nMinThread = 1;
-        if (nMaxThread <= 0 || nMaxThread >= 256)
-            nMaxThread = 8;
-        if (nHeavyTestTime < 1000)
-            nHeavyTestTime = 60 * 1000;
         printf("/*************************************************************************/\n");
         printf("Start CCLockfreeQueue\n");
         for (int i = 0; i < nTimes; i++) {
@@ -108,14 +110,14 @@ int main(int argc, char* argv[]){
                 break;
             }
         }
-        printf("/*************************************************************************/\n");
-        printf("Start CLockFreeMessageQueuePushPop\n");
-        for (int i = 0; i < nTimes; i++) {
-            if (!BenchmarkQueue<ctx_message, CLockFreeMessageQueuePushPop>(conMsgQueue, nRepeatTimes, nMinThread, nMaxThread)) {
-                printf("check fail!\n");
-                break;
-            }
-        }
+//        printf("/*************************************************************************/\n");
+//        printf("Start CLockFreeMessageQueuePushPop\n");
+//        for (int i = 0; i < nTimes; i++) {
+//            if (!BenchmarkQueue<ctx_message, CLockFreeMessageQueuePushPop>(conMsgQueue, nRepeatTimes, nMinThread, nMaxThread)) {
+//                printf("check fail!\n");
+//                break;
+//            }
+//        }
         printf("/*************************************************************************/\n");
         printf("Start CCLockfreeQueue heavy\n");
         if (!BenchmarkQueueTime<ctx_message, CCLockfreeQueue<ctx_message>>(basicQueue, nHeavyTestTime, nMinThread, nMinThread)) {

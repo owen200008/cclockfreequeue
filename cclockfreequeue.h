@@ -231,9 +231,6 @@ public:
                         while (m_pPool[i].m_nWrite.load(std::memory_order_relaxed) != 0x10)
                             bPause.pause();
                     }
-                    //free data
-                    Traits::free(m_pPool);
-                    m_pPool = nullptr;
                     return 1;
                 }
                 return 3;
@@ -246,6 +243,11 @@ public:
             value = writeNode.m_pData;
             writeNode.m_nWrite.store(0x10, std::memory_order_release);
             return 0;
+        }
+        inline void ReleasePool(){
+            //free data
+            Traits::free(m_pPool);
+            m_pPool = nullptr;
         }
     protected:
         struct StoreData {
@@ -274,8 +276,8 @@ public:
         void InitMicroQueue(uint32_t nIndex) {
             m_nWriteCircle = 0;
             m_nReadCircle = 0;
-            m_pCircle[0] = Circle::CreateCircle(Traits::BlockDefaultPerSize, nIndex);;
-            m_pWrite = m_pCircle[0];
+            m_pCircle[0].store(Circle::CreateCircle(Traits::BlockDefaultPerSize, nIndex), std::memory_order_relaxed);
+            m_pWrite = m_pCircle[0].load(std::memory_order_relaxed);
             m_pRead = m_pWrite;
         }
         inline void PushMicroQueue(const T& value, uint32_t nPreWriteIndex) {
@@ -289,9 +291,10 @@ public:
                         return;
                     }  
                 case 1:{
-                        uint8_t nextCircle = ++m_nWriteCircle;
+                        uint8_t nextCircle = m_nWriteCircle + 1;
                         pCircle = Circle::CreateNextCircle(pCircle);
-                        m_pCircle[nextCircle].store(pCircle);
+                        m_pCircle[nextCircle].store(pCircle, std::memory_order_release);
+                        m_nWriteCircle = nextCircle;
                         m_pWrite = pCircle;
                         pCircle->PushPosition(value, nPreWriteIndex);
                         return;
@@ -315,7 +318,8 @@ public:
                     while (m_nReadCircle == m_nWriteCircle) {
                         pause.pause();
                     }
-                    m_pRead = m_pCircle[++m_nReadCircle];
+                    m_pRead = m_pCircle[++m_nReadCircle].load(std::memory_order_acquire);
+                    pReadCircle->ReleasePool();
                     break;
                 }
                 default:
