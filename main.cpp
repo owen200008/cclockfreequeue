@@ -2,14 +2,6 @@
 #include "lockfreemessagequeue.h"
 #include "debug.h"
 #include "cccontaintemplate.h"
-
-#ifdef _WIN32
-#include <Windows.h>
-#else
-#include <sys/sysinfo.h>
-#include <sys/times.h>
-#include <sys/time.h>
-#endif
 #include <atomic>
 
 
@@ -90,10 +82,10 @@ bool BenchmarkQueueTime(Queue& q, int nTotalTimes, int nPushThread, int nPopThre
 int main(int argc, char* argv[]){
     {
         CCLockfreeQueue<ctx_message> basicQueue;
-        int nTimes = 3;
+        int nTimes = 5;
         int nRepeatTimes = 5;
         int nMinThread = 1;
-        int nMaxThread = 1;
+        int nMaxThread = 8;
         //Ä¬ÈÏ1·ÖÖÓ
         int nHeavyTestTime = 60 * 1000;
         if (argc >= 2) {

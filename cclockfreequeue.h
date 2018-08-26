@@ -120,16 +120,17 @@ public:
 
 #ifdef __GNUC__
 #if defined(__APPLE__)
-#define CCLockfreeInterlockedIncrement(value) (OSAtomicAdd32(1, value) - 1);
-#define CCLockfreeInterlockedCompareExchange(value, comp, exchange) OSAtomicCompareAndSwap32(value, exchange, comp)
+#include <libkern/OsAtomic.h>
+#define CCLockfreeInterlockedIncrement(value) (OSAtomicAdd32(1, (volatile int32_t *)value) - 1);
+#define CCLockfreeInterlockedCompareExchange(value, comp, exchange) OSAtomicCompareAndSwap32(comp, exchange, (volatile int32_t *)value)
 #else
 #define CCLockfreeInterlockedIncrement(value) __sync_fetch_and_add(value, 1)
-#define CCLockfreeInterlockedCompareExchange(value, comp, exchange) __sync_bool_compare_and_swap(value, exchange, comp)
+#define CCLockfreeInterlockedCompareExchange(value, comp, exchange) __sync_bool_compare_and_swap(value, comp, exchange)
 #endif
 
 #elif defined(_MSC_VER)
 #define CCLockfreeInterlockedIncrement(value) (::InterlockedIncrement(value) - 1)
-#define CCLockfreeInterlockedCompareExchange(value, comp, exchange) ::InterlockedCompareExchange(value, exchange, comp)
+#define CCLockfreeInterlockedCompareExchange(value, comp, exchange) (::InterlockedCompareExchange(value, exchange, comp) == comp)
 #endif
 //采用空间换时间的方法
 template<class T, class Traits = CCLockfreeQueueFunc, class ObjectBaseClass = CCLockfreeObject<Traits>>
@@ -381,7 +382,7 @@ public:
             if (nNowReadIndex == nWriteIndex) {
                 return false;
             }
-        } while (CCLockfreeInterlockedCompareExchange(&m_nReadIndex, nNowReadIndex, nNowReadIndex + 1) != nNowReadIndex);
+        } while (!CCLockfreeInterlockedCompareExchange(&m_nReadIndex, nNowReadIndex, nNowReadIndex + 1));
 
         m_queue[nNowReadIndex % Traits::ThreadWriteIndexModeIndex].PopMicroQueue(value, nNowReadIndex);
         return true;
