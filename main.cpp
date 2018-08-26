@@ -17,8 +17,7 @@ struct ctx_message {
         memset(this, 0, sizeof(ctx_message));
         m_nCtxID = ctxid;
     }
-    ~ctx_message() {
-    }
+
 
     void InitUint(uint32_t nIndex, uint32_t nValue) {
         m_nCtxID = nValue;
@@ -84,7 +83,7 @@ int main(int argc, char* argv[]){
         CCLockfreeQueue<ctx_message> basicQueue;
         int nTimes = 5;
         int nRepeatTimes = 5;
-        int nMinThread = 1;
+        int nMinThread = 4;
         int nMaxThread = 8;
         //ƒ¨»œ1∑÷÷”
         int nHeavyTestTime = 60 * 1000;

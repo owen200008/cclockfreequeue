@@ -180,27 +180,26 @@ public:
                 return 2;
             }
             else if(nDis == m_nCheckTotalSizeValue){
-                std::atomic_thread_fence(std::memory_order_acquire);
                 //需要判断 前一个环是否已经读取完成
                 uint32_t nPerSize = m_nTotalSize / 2;
                 StoreData* pPoint = &m_pPool[((nPreWriteIndex - m_nResBeginIndex) / Traits::ThreadWriteIndexModeIndex) % m_nTotalSize];
                 uint8_t bWriteValue = 0;
                 for (uint32_t i = 0; i < nPerSize; i++) {
-                    bWriteValue = pPoint[i].m_nWrite;
+                    bWriteValue = pPoint[i].m_nWrite.load(std::memory_order_relaxed);
                     if (bWriteValue != 0x10) {
                         m_bNoWrite = true;
                         atomic_backoff bPause;
                         while (bWriteValue == 0) {
                             bPause.pause();
-                            bWriteValue = pPoint[i].m_nWrite;
+                            bWriteValue = pPoint[i].m_nWrite.load(std::memory_order_relaxed);
                         }
                         for (uint32_t j = i + 1; j < nPerSize; j++) {
-                            while (0 == pPoint[j].m_nWrite)
+                            while (0 == pPoint[j].m_nWrite.load(std::memory_order_relaxed))
                                 bPause.pause();
                         }
                         pPoint = pPoint == m_pPool ? &m_pPool[nPerSize] : m_pPool;
                         for (uint32_t j = 0; j < nPerSize; j++) {
-                            while (0 == pPoint[j].m_nWrite)
+                            while (0 == pPoint[j].m_nWrite.load(std::memory_order_relaxed))
                                 bPause.pause();
                         }
                         return 1;
@@ -213,8 +212,7 @@ public:
             }
             StoreData& writeNode = m_pPool[((nPreWriteIndex - m_nResBeginIndex) / Traits::ThreadWriteIndexModeIndex) % m_nTotalSize];
             writeNode.m_pData = value;
-            std::atomic_thread_fence(std::memory_order_release);
-            writeNode.m_nWrite = 0x11;
+            writeNode.m_nWrite.store(0x11, std::memory_order_release);
             return 0;
         }
         inline int PopPosition(T& value, uint32_t nReadIndex) {
@@ -230,7 +228,7 @@ public:
                 if (m_bNoWrite) {
                     atomic_backoff bPause;
                     for (uint32_t i = 0; i < m_nTotalSize; i++) {
-                        while (m_pPool[i].m_nWrite != 0x10)
+                        while (m_pPool[i].m_nWrite.load(std::memory_order_relaxed) != 0x10)
                             bPause.pause();
                     }
                     //free data
@@ -242,19 +240,17 @@ public:
             }
             StoreData& writeNode = m_pPool[((nReadIndex - m_nResBeginIndex) / Traits::ThreadWriteIndexModeIndex) % m_nTotalSize];
             atomic_backoff bPause;
-            while (writeNode.m_nWrite != 0x11) {
+            while (writeNode.m_nWrite.load(std::memory_order_acquire) != 0x11) {
                 bPause.pause();
             }
-            std::atomic_thread_fence(std::memory_order_acquire);
             value = writeNode.m_pData;
-            std::atomic_thread_fence(std::memory_order_release);
-            writeNode.m_nWrite = 0x10;
+            writeNode.m_nWrite.store(0x10, std::memory_order_release);
             return 0;
         }
     protected:
         struct StoreData {
             T                           m_pData;
-            volatile uint8_t            m_nWrite;
+            std::atomic<uint8_t>        m_nWrite;
         };
         uint32_t                        m_nResBeginIndex;
         volatile uint32_t               m_nBeginIndex;
@@ -266,39 +262,38 @@ public:
     struct MicroQueue {
         volatile uint8_t                                            m_nWriteCircle;
         volatile uint8_t                                            m_nReadCircle;
-        Circle*                                                     m_pCircle[Traits::CirclePointNumber];
+
+        Circle* volatile                                            m_pWrite;
+        Circle* volatile                                            m_pRead;
+        std::atomic<Circle*>                                        m_pCircle[Traits::CirclePointNumber];
         ~MicroQueue() {
-            for (int i = 0; i < Traits::CirclePointNumber; i++) {
-                if (nullptr == m_pCircle[i]) {
-                    break;
-                }
+            for (int i = 0; i <= m_nWriteCircle; i++) {
                 Circle::ReleaseCircle(m_pCircle[i]);
             }
         }
         void InitMicroQueue(uint32_t nIndex) {
-            memset(m_pCircle, 0, Traits::CirclePointNumber * sizeof(std::atomic<Circle*>));
             m_nWriteCircle = 0;
             m_nReadCircle = 0;
-            m_pCircle[m_nWriteCircle] = Circle::CreateCircle(Traits::BlockDefaultPerSize, nIndex);
+            m_pCircle[0] = Circle::CreateCircle(Traits::BlockDefaultPerSize, nIndex);;
+            m_pWrite = m_pCircle[0];
+            m_pRead = m_pWrite;
         }
         inline void PushMicroQueue(const T& value, uint32_t nPreWriteIndex) {
-            uint8_t nCircle;
             atomic_backoff pause;
+            Circle* pCircle;
             //判断当前写入环是否可以用
             while(true) {
-                //如果
-                nCircle = m_nWriteCircle;
-                std::atomic_thread_fence(std::memory_order_acquire);
-                switch (m_pCircle[nCircle]->PushPosition(value, nPreWriteIndex)) {
+                pCircle = m_pWrite;
+                switch (m_pWrite->PushPosition(value, nPreWriteIndex)) {
                 case 0: {
                         return;
                     }  
                 case 1:{
-                        uint8_t nextCircle = nCircle + 1;
-                        m_pCircle[nextCircle] = Circle::CreateNextCircle(m_pCircle[nCircle]);
-                        std::atomic_thread_fence(std::memory_order_release);
-                        m_nWriteCircle = nextCircle;
-                        m_pCircle[nextCircle]->PushPosition(value, nPreWriteIndex);
+                        uint8_t nextCircle = ++m_nWriteCircle;
+                        pCircle = Circle::CreateNextCircle(pCircle);
+                        m_pCircle[nextCircle].store(pCircle);
+                        m_pWrite = pCircle;
+                        pCircle->PushPosition(value, nPreWriteIndex);
                         return;
                     }
                 }
@@ -307,28 +302,27 @@ public:
             }
         }
         inline void PopMicroQueue(T& value, uint32_t nNowReadIndex) {
-            uint8_t nCircleRead;
             atomic_backoff pause;
+            Circle* pReadCircle;
             while (true){
-                nCircleRead = m_nReadCircle;
-                std::atomic_thread_fence(std::memory_order_acquire);
-                switch (m_pCircle[nCircleRead]->PopPosition(value, nNowReadIndex)) {
+                pReadCircle = m_pRead;
+                switch (pReadCircle->PopPosition(value, nNowReadIndex)) {
                 case 0:{
                     return;
                 }
                 case 1: {
                     //need read next circle
-                    while (nCircleRead == m_nWriteCircle) {
+                    while (m_nReadCircle == m_nWriteCircle) {
                         pause.pause();
                     }
-                    m_nReadCircle = nCircleRead + 1;
+                    m_pRead = m_pCircle[++m_nReadCircle];
                     break;
                 }
                 default:
                     pause.pause();
                     break;
                 }
-            } 
+            }
         }
     };
 public:
