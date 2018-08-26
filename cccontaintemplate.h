@@ -275,6 +275,9 @@ public:
         m_nRepeatTimes = nRepeatTimes;
         m_pContain = p;
     }
+    virtual ~CContainUnitThreadRunMode(){
+        
+    }
 
     template<class F>
     bool RepeatCCContainUnitThread(uint32_t nThreadCount, uint32_t maxPushTimes, F func) {
@@ -364,6 +367,9 @@ public:
         m_nTotalTimes = nTotalTimes;
         m_pContain = p;
     }
+    virtual ~CContainUnitThreadRunModeTime(){
+        
+    }
 
     bool PowerOfTwoThreadCountImpl(uint32_t nPushThreadCount, uint32_t nPopThreadCount) {
         bool bRet = true;
@@ -410,6 +416,7 @@ public:
         if (!pMgr->CheckIsSuccess()) {
             printf("check fail\n");
         }
+        delete pMgr;
         delete[]pPushThread;
         delete[]pPopThread;
 
