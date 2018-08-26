@@ -243,15 +243,13 @@ THREAD_RETURN PopContentNoNullFunc(void* p) {
     CCContainUnitThread<T, Container>* pTest = (CCContainUnitThread<T, Container>*)p;
     Container* pContainer = pTest->GetContainer();
     T node;
-    CCContainUnitStatus status = pTest->GetTimeStatus();
-    while (status != CCContainUnitStatus_Finish) {
+    while (pTest->GetTimeStatus() != CCContainUnitStatus_Finish) {
         if (!pContainer->Pop(node)) {
             pTest->NoPopData();
             CCSleep(1);
             continue;
         }
         pTest->Receive(&node);
-        status = pTest->GetTimeStatus();
     }
     //pop all data
     while (true) {
@@ -259,7 +257,6 @@ THREAD_RETURN PopContentNoNullFunc(void* p) {
             break;
         }
         pTest->Receive(&node);
-        status = pTest->GetTimeStatus();
     }
     return 0;
 }
