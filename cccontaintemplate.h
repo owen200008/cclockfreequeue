@@ -231,7 +231,7 @@ THREAD_RETURN PushContentNoNullFunc(void* p) {
             break;
         case CCContainUnitStatus_Wait:
             pThreadTest->NoPushData();
-            Sleep(1);
+            CCSleep(1);
             break;
         }
         status = pThreadTest->GetTimeStatus();
@@ -248,7 +248,7 @@ THREAD_RETURN PopContentNoNullFunc(void* p) {
     while (status != CCContainUnitStatus_Finish) {
         if (!pContainer->Pop(node)) {
             pTest->NoPopData();
-            Sleep(1);
+            CCSleep(1);
             continue;
         }
         pTest->Receive(&node);
@@ -406,7 +406,7 @@ public:
         }
         while (!IsTimeEnoughUseTime(begin, m_nTotalTimes, PrintEffect(szBuf, pMgr))) {
             if (!IsTimeEnoughUseTime(begin, nCheckTime, PrintEffect(szBuf, pMgr))) {
-                Sleep(1);
+                CCSleep(1);
                 continue;
             }
             nCheckTime += PRINT_TIME;
