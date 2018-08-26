@@ -49,6 +49,7 @@ if(MSVC)
 	set(BasicLibDefinitions ${BasicLibDefinitions} -DUNICODE -D_UNICODE)
 else()
 	set(BasicLibCMakeCXX_FLAGS "${BasicLibCMakeCXX_FLAGS} --std=c++11 -frtti -fexceptions")
+	set(BasicLibLinks ${BasicLibLinks} pthread)
 endif()
 
 #define

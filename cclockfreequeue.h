@@ -1,5 +1,6 @@
 #pragma once
 
+#include <stdio.h>
 #include <stdlib.h>
 #include <atomic>
 #include <assert.h>
@@ -10,6 +11,8 @@
 #include <windows.h>
 #define CCSwitchToThread() SwitchToThread();
 #else
+#include <emmintrin.h>
+#include <thread>
 #define CCSwitchToThread() std::this_thread::yield();
 #endif
 

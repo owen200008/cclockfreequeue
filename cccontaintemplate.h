@@ -2,7 +2,7 @@
 #define CCCONTAINUNITTEMPLATE_H
 
 #include "headdefine.h"
-
+#include <stdio.h>
 #ifdef _WIN32
 #define THREAD_RETURN DWORD		//!< Windows线程函数返回值
 #else
@@ -26,7 +26,6 @@ template<class T, class Container>
 class CCContainUnit {
 public:
     typedef CCContainUnitThread<T, Container> UnitThread;
-    class UnitThread;
 public:
     virtual ~CCContainUnit() {
         if (m_pNode) {
@@ -298,9 +297,9 @@ public:
     bool PowerOfTwoThreadCountImpl(uint32_t nThreadCount, LPBASIC_THREAD_START_ROUTINE lpStartAddressPush, LPBASIC_THREAD_START_ROUTINE lpStartAddressPop) {
         bool bRet = true;
         char szBuf[2][32];
-        sprintf_s(szBuf[0], 32, "ThreadCount(%d) Push", nThreadCount);
+        ccsnprintf(szBuf[0], 32, "ThreadCount(%d) Push", nThreadCount);
         CreateCalcUseTime(begin, PrintUseTime(szBuf[0], m_nMaxCountTimesFast / nThreadCount * m_nRepeatTimes * nThreadCount), false);
-        sprintf_s(szBuf[1], 32, "ThreadCount(%d) Pop", nThreadCount);
+        ccsnprintf(szBuf[1], 32, "ThreadCount(%d) Pop", nThreadCount);
         CreateCalcUseTime(beginrece, PrintUseTime(szBuf[1], m_nMaxCountTimesFast / nThreadCount * m_nRepeatTimes * nThreadCount), false);
         RepeatCCContainUnitThread(nThreadCount, m_nMaxCountTimesFast / nThreadCount, [&](CCContainUnitThread<T, Container>* pMgr, uint32_t nReceiveThreadCount) {
             bool bFuncRet = true;
@@ -369,24 +368,10 @@ public:
         m_pContain = p;
     }
 
-    template<class F>
-    bool RepeatCCContainUnitThread(uint32_t nThreadCount, uint32_t maxPushTimes, F func) {
-        uint32_t nReceiveThreadCount = nThreadCount;
-        for (uint32_t i = 0; i < m_nRepeatTimes; i++) {
-            
-            if (!func(p, nReceiveThreadCount)) {
-                delete p;
-                return false;
-            }
-            delete p;
-        }
-        return true;
-    }
-
     bool PowerOfTwoThreadCountImpl(uint32_t nPushThreadCount, uint32_t nPopThreadCount) {
         bool bRet = true;
         char szBuf[128];
-        sprintf_s(szBuf, 128, "PushThreadCount(%d) PopThreadCount(%d)", nPushThreadCount, nPopThreadCount);
+        ccsnprintf(szBuf, 128, "PushThreadCount(%d) PopThreadCount(%d)", nPushThreadCount, nPopThreadCount);
         CreateCalcUseTime(begin, nullptr, false);
 
         auto pMgr = createUnitThread();
