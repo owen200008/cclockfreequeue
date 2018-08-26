@@ -99,7 +99,7 @@ int main(int argc, char* argv[]){
     if (nHeavyTestTime < 1000)
         nHeavyTestTime = 60 * 1000;
     
-    for(int i = 0;i < 2;i++)
+    for(int i = 0;i < 100;i++)
     {
         CCLockfreeQueue<ctx_message> basicQueue;
         printf("/*************************************************************************/\n");
