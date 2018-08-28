@@ -122,9 +122,11 @@ public:
 #if defined(__APPLE__)
 #include <libkern/OsAtomic.h>
 #define CCLockfreeInterlockedIncrement(value) (OSAtomicAdd32(1, (volatile int32_t *)value) - 1);
+#define CCLockfreeInterlockedDecrementNoCheckReturn(value) OSAtomicAdd32(-1, (volatile int32_t *)value);
 #define CCLockfreeInterlockedCompareExchange(value, comp, exchange) OSAtomicCompareAndSwap32(comp, exchange, (volatile int32_t *)value)
 #else
 #define CCLockfreeInterlockedIncrement(value) __sync_fetch_and_add(value, 1)
+#define CCLockfreeInterlockedDecrementNoCheckReturn(value) __sync_fetch_and_sub(value, 1)
 #define CCLockfreeInterlockedCompareExchange(value, comp, exchange) __sync_bool_compare_and_swap(value, comp, exchange)
 #endif
 
