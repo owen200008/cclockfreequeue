@@ -101,11 +101,11 @@ int main(int argc, char* argv[]){
     
     for(int i = 0;i < 100;i++)
     {
-        CCLockfreeQueue<ctx_message> basicQueue;
+        cclockfree::CCLockfreeQueue<ctx_message> basicQueue;
         printf("/*************************************************************************/\n");
         printf("Start CCLockfreeQueue\n");
         for (int i = 0; i < nTimes; i++) {
-            if (!BenchmarkQueue<ctx_message, CCLockfreeQueue<ctx_message>>(basicQueue, nRepeatTimes, nMinThread, nMaxThread)) {
+            if (!BenchmarkQueue<ctx_message, cclockfree::CCLockfreeQueue<ctx_message>>(basicQueue, nRepeatTimes, nMinThread, nMaxThread)) {
                 printf("check fail!\n");
                 break;
             }
@@ -120,7 +120,7 @@ int main(int argc, char* argv[]){
 //        }
         printf("/*************************************************************************/\n");
         printf("Start CCLockfreeQueue heavy\n");
-        if (!BenchmarkQueueTime<ctx_message, CCLockfreeQueue<ctx_message>>(basicQueue, nHeavyTestTime, nMinThread, nMinThread)) {
+        if (!BenchmarkQueueTime<ctx_message, cclockfree::CCLockfreeQueue<ctx_message>>(basicQueue, nHeavyTestTime, nMinThread, nMinThread)) {
             printf("check fail!\n");
         }
         printf("/*************************************************************************/\n");
