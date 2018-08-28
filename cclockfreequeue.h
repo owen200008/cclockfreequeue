@@ -285,7 +285,7 @@ public:
             //判断当前写入环是否可以用
             while(true) {
                 pCircle = m_pWrite;
-                std::_Atomic_thread_fence(std::memory_order_acquire);
+                atomic_thread_fence(std::memory_order_acquire);
                 switch (m_pWrite->PushPosition(value, nPreWriteIndex)) {
                 case 0: {
                         return;
@@ -294,7 +294,7 @@ public:
                         uint8_t nextCircle = m_nWriteCircle + 1;
                         pCircle = Circle::CreateNextCircle(pCircle);
                         m_pCircle[nextCircle] = pCircle;
-                        std::_Atomic_thread_fence(std::memory_order_release);
+                        atomic_thread_fence(std::memory_order_release);
                         m_pWrite = m_pCircle[nextCircle];
                         m_nWriteCircle = nextCircle;
                         pCircle->PushPosition(value, nPreWriteIndex);
@@ -310,7 +310,7 @@ public:
             Circle* pReadCircle;
             while (true){
                 pReadCircle = m_pRead;
-                std::_Atomic_thread_fence(std::memory_order_acquire);
+                atomic_thread_fence(std::memory_order_acquire);
                 switch (pReadCircle->PopPosition(value, nNowReadIndex)) {
                 case 0:{
                     return;
@@ -369,7 +369,7 @@ public:
         //must be read first
         uint32_t nNowReadIndex = m_nReadIndex;
         //禁止write的读取在read之前读取
-        std::_Atomic_signal_fence(std::memory_order_acquire);
+        atomic_signal_fence(std::memory_order_acquire);
         uint32_t nPreWriteIndex = m_nPreWriteIndex;
         if (nNowReadIndex == nPreWriteIndex) {
             return false;
