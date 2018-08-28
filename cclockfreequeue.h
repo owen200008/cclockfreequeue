@@ -82,7 +82,7 @@ struct CCLockfreeQueueFunc {
     //! block size, 2的指数
     static const uint32_t BlockDefaultPerSize = 16;
     //! 分配环的指针数量
-    static const uint8_t CirclePointNumber = 27; //默认取 log(0xFFFFFFFF + 1) - log(BlockDefaultPerSize);
+    static const uint8_t CirclePointNumber = 25; //默认取 log((0xFFFFFFFF + 1) / SpaceToAllocaBlockSize) - log(BlockDefaultPerSize);
 
 #if defined(malloc) || defined(free)
     static inline void* malloc(size_t size) { return ::malloc(size); }
@@ -130,8 +130,11 @@ public:
 
 #elif defined(_MSC_VER)
 #define CCLockfreeInterlockedIncrement(value) (::InterlockedIncrement(value) - 1)
+#define CCLockfreeInterlockedDecrementNoCheckReturn(value) ::InterlockedDecrement(value)
 #define CCLockfreeInterlockedCompareExchange(value, comp, exchange) (::InterlockedCompareExchange(value, exchange, comp) == comp)
 #endif
+
+#define USE_QUICKPOP
 //采用空间换时间的方法
 template<class T, class Traits = CCLockfreeQueueFunc, class ObjectBaseClass = CCLockfreeObject<Traits>>
 class CCLockfreeQueue : public ObjectBaseClass {
@@ -263,7 +266,7 @@ public:
 
         Circle* volatile                                            m_pWrite;
         Circle* volatile                                            m_pRead;
-        std::atomic<Circle*>                                        m_pCircle[Traits::CirclePointNumber];
+        Circle* volatile                                            m_pCircle[Traits::CirclePointNumber];
         ~MicroQueue() {
             for (int i = 0; i <= m_nWriteCircle; i++) {
                 Circle::ReleaseCircle(m_pCircle[i]);
@@ -272,8 +275,8 @@ public:
         void InitMicroQueue(uint32_t nIndex) {
             m_nWriteCircle = 0;
             m_nReadCircle = 0;
-            m_pCircle[0].store(Circle::CreateCircle(Traits::BlockDefaultPerSize, nIndex), std::memory_order_relaxed);
-            m_pWrite = m_pCircle[0].load(std::memory_order_relaxed);
+            m_pCircle[0] = Circle::CreateCircle(Traits::BlockDefaultPerSize, nIndex);
+            m_pWrite = m_pCircle[0];
             m_pRead = m_pWrite;
         }
         inline void PushMicroQueue(const T& value, uint32_t nPreWriteIndex) {
@@ -282,6 +285,7 @@ public:
             //判断当前写入环是否可以用
             while(true) {
                 pCircle = m_pWrite;
+                std::_Atomic_thread_fence(std::memory_order_acquire);
                 switch (m_pWrite->PushPosition(value, nPreWriteIndex)) {
                 case 0: {
                         return;
@@ -289,9 +293,10 @@ public:
                 case 1:{
                         uint8_t nextCircle = m_nWriteCircle + 1;
                         pCircle = Circle::CreateNextCircle(pCircle);
-                        m_pCircle[nextCircle].store(pCircle, std::memory_order_release);
+                        m_pCircle[nextCircle] = pCircle;
+                        std::_Atomic_thread_fence(std::memory_order_release);
+                        m_pWrite = m_pCircle[nextCircle];
                         m_nWriteCircle = nextCircle;
-                        m_pWrite = pCircle;
                         pCircle->PushPosition(value, nPreWriteIndex);
                         return;
                     }
@@ -305,6 +310,7 @@ public:
             Circle* pReadCircle;
             while (true){
                 pReadCircle = m_pRead;
+                std::_Atomic_thread_fence(std::memory_order_acquire);
                 switch (pReadCircle->PopPosition(value, nNowReadIndex)) {
                 case 0:{
                     return;
@@ -314,7 +320,7 @@ public:
                     while (m_nReadCircle == m_nWriteCircle) {
                         pause.pause();
                     }
-                    m_pRead = m_pCircle[++m_nReadCircle].load(std::memory_order_acquire);
+                    m_pRead = m_pCircle[++m_nReadCircle];
                     pReadCircle->ReleasePool();
                     break;
                 }
@@ -330,6 +336,9 @@ public:
         uint32_t nSetBeginIndex = Traits::CCLockfreeQueueStartIndex;
         m_nReadIndex = nSetBeginIndex;
         m_nPreWriteIndex = nSetBeginIndex;
+#ifdef USE_QUICKPOP
+        m_nPreReadIndex = m_nReadIndex;
+#endif
         if ((Traits::BlockDefaultPerSize & (Traits::BlockDefaultPerSize - 1)) != 0) {
             printf("Traits::BlockDefaultPerSize is not power(2) error!\n");
             exit(0);
@@ -354,6 +363,61 @@ public:
         uint32_t nPreWriteIndex = CCLockfreeInterlockedIncrement(&m_nPreWriteIndex);
         m_queue[nPreWriteIndex % Traits::ThreadWriteIndexModeIndex].PushMicroQueue(value, nPreWriteIndex);
     }
+
+#ifdef USE_QUICKPOP
+    bool Pop(T& value) {
+        //must be read first
+        uint32_t nNowReadIndex = m_nReadIndex;
+        //禁止write的读取在read之前读取
+        std::_Atomic_signal_fence(std::memory_order_acquire);
+        uint32_t nPreWriteIndex = m_nPreWriteIndex;
+        if (nNowReadIndex == nPreWriteIndex) {
+            return false;
+        }
+        //read after
+        uint32_t nPreReadIndex = CCLockfreeInterlockedIncrement(&m_nPreReadIndex);
+        if (nPreReadIndex == nPreWriteIndex) {
+            //Queue is empty
+            CCLockfreeInterlockedDecrementNoCheckReturn(&m_nPreReadIndex);
+            return false;
+        }
+        //首先判断自己是否溢出, 默认前提是不可能写满max_uint32_t个队列
+        bool bReadMoreUIINT32 = false;
+        bool bWriteMoreUIINT32 = false;
+
+        uint32_t nRead = 0;
+
+        if (nPreReadIndex < nNowReadIndex) {
+            bReadMoreUIINT32 = true;
+        }
+        if (nPreWriteIndex < nNowReadIndex) {
+            bWriteMoreUIINT32 = true;
+        }
+        //一共4种情况
+        if (bReadMoreUIINT32 && !bWriteMoreUIINT32) {
+            //no more data read
+            CCLockfreeInterlockedDecrementNoCheckReturn(&m_nPreReadIndex);
+            return false;
+    }
+        else if (!bReadMoreUIINT32 && bWriteMoreUIINT32) {
+            //肯定可读
+            nRead = CCLockfreeInterlockedIncrement(&m_nReadIndex);
+        }
+        else {
+            if (nPreReadIndex < nPreWriteIndex) {
+                //肯定可读
+                nRead = CCLockfreeInterlockedIncrement(&m_nReadIndex);
+            }
+            else {
+                //no more data read
+                CCLockfreeInterlockedDecrementNoCheckReturn(&m_nPreReadIndex);
+                return false;
+            }
+        }
+        m_queue[nRead % Traits::ThreadWriteIndexModeIndex].PopMicroQueue(value, nRead);
+        return true;
+    }
+#else
     bool PopIndex(T& value, uint32_t& nReadindex) {
         uint32_t nWriteIndex, nNowReadIndex;
         do {
@@ -381,8 +445,12 @@ public:
         m_queue[nNowReadIndex % Traits::ThreadWriteIndexModeIndex].PopMicroQueue(value, nNowReadIndex);
         return true;
     }
+#endif
 protected:
     volatile uint32_t                                           m_nPreWriteIndex;
+#ifdef USE_QUICKPOP
+    volatile uint32_t                                           m_nPreReadIndex;
+#endif
     volatile uint32_t                                           m_nReadIndex;
 
     MicroQueue                                                  m_queue[Traits::ThreadWriteIndexModeIndex];
