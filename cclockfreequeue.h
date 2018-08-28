@@ -353,20 +353,17 @@ namespace cclockfree {
         };
     public:
         CCLockfreeQueue() {
+            static_assert((Traits::BlockDefaultPerSize & (Traits::BlockDefaultPerSize - 1)) == 0,
+                "Traits::BlockDefaultPerSize is not power(2) error!");
+            static_assert((Traits::ThreadWriteIndexModeIndex & (Traits::ThreadWriteIndexModeIndex - 1)) == 0,
+                "Traits::ThreadWriteIndexModeIndex is not power(2) error!");
+
             uint32_t nSetBeginIndex = Traits::CCLockfreeQueueStartIndex;
             m_nReadIndex = nSetBeginIndex;
             m_nPreWriteIndex = nSetBeginIndex;
 #ifdef USE_QUICKPOP_CCLOCKFREEQUEUE
             m_nPreReadIndex = m_nReadIndex;
 #endif
-            if ((Traits::BlockDefaultPerSize & (Traits::BlockDefaultPerSize - 1)) != 0) {
-                printf("Traits::BlockDefaultPerSize is not power(2) error!\n");
-                exit(0);
-            }
-            if ((Traits::ThreadWriteIndexModeIndex & (Traits::ThreadWriteIndexModeIndex - 1)) != 0) {
-                printf("Traits::ThreadWriteIndexModeIndex is not power(2) error!\n");
-                exit(0);
-            }
             for (uint8_t i = 0; i < Traits::ThreadWriteIndexModeIndex; i++) {
                 m_queue[i].InitMicroQueue(nSetBeginIndex + i);
             }
