@@ -1,19 +1,11 @@
 #ifndef CCCONTAINUNITTEMPLATE_H
 #define CCCONTAINUNITTEMPLATE_H
 
-#include "headdefine.h"
 #include <stdio.h>
-#ifdef _WIN32
-#define THREAD_RETURN DWORD		//!< Windows线程函数返回值
-#else
-#define THREAD_RETURN void*		//!< Linux线程函数返回值
-#endif
 
 //!
 //线程工作函数定义
-//如：THREAD_RETURN DemoProc(void* pParam);
-typedef THREAD_RETURN(*PBASIC_THREAD_START_ROUTINE)(void* lpThreadParameter);
-typedef PBASIC_THREAD_START_ROUTINE LPBASIC_THREAD_START_ROUTINE;
+typedef void (*CCLOCKFREEQUEUE_THREAD_START_ROUTINE)(void* lpThreadParameter);
 
 enum CCContainUnitStatus {
     CCContainUnitStatus_Ready,
@@ -164,7 +156,7 @@ protected:
 };
 
 template<class T, class Container>
-THREAD_RETURN PushFunc(void* p) {
+void PushFunc(void* p) {
     CCContainUnit<T, Container>* pTest = (CCContainUnit<T, Container>*)p;
     Container* pContainer = pTest->GetContainer();
     while (true) {
@@ -173,11 +165,10 @@ THREAD_RETURN PushFunc(void* p) {
             break;
         pContainer->Push(pRet);
     }
-    return 0;
 }
 
 template<class T, class Container>
-THREAD_RETURN PopFunc(void* p) {
+void PopFunc(void* p) {
     CCContainUnitThread<T, Container>* pTest = (CCContainUnitThread<T, Container>*)p;
     Container* pContainer = pTest->GetContainer();
     while (true) {
@@ -186,11 +177,10 @@ THREAD_RETURN PopFunc(void* p) {
             break;
         pTest->Receive(p);
     }
-    return 0;
 }
 
 template<class T, class Container>
-THREAD_RETURN PushContentFunc(void* p) {
+void PushContentFunc(void* p) {
     CCContainUnit<T, Container>* pTest = (CCContainUnit<T, Container>*)p;
     Container* pContainer = pTest->GetContainer();
     while (true) {
@@ -199,11 +189,10 @@ THREAD_RETURN PushContentFunc(void* p) {
             break;
         pContainer->Push(*pRet);
     }
-    return 0;
 }
 
 template<class T, class Container>
-THREAD_RETURN PopContentFunc(void* p) {
+void PopContentFunc(void* p) {
     CCContainUnitThread<T, Container>* pTest = (CCContainUnitThread<T, Container>*)p;
     Container* pContainer = pTest->GetContainer();
     T node;
@@ -213,12 +202,11 @@ THREAD_RETURN PopContentFunc(void* p) {
             break;
         pTest->Receive(&node);
     }
-    return 0;
 }
 
 
 template<class T, class Container>
-THREAD_RETURN PushContentNoNullFunc(void* p) {
+void PushContentNoNullFunc(void* p) {
     CCContainUnit<T, Container>* pTest = (CCContainUnit<T, Container>*)p;
     CCContainUnitThread<T, Container>* pThreadTest = pTest->GetUnitThread();
     Container* pContainer = pTest->GetContainer();
@@ -235,11 +223,10 @@ THREAD_RETURN PushContentNoNullFunc(void* p) {
         }
         status = pThreadTest->GetTimeStatus();
     }
-    return 0;
 }
 
 template<class T, class Container>
-THREAD_RETURN PopContentNoNullFunc(void* p) {
+void PopContentNoNullFunc(void* p) {
     CCContainUnitThread<T, Container>* pTest = (CCContainUnitThread<T, Container>*)p;
     Container* pContainer = pTest->GetContainer();
     T node;
@@ -258,7 +245,6 @@ THREAD_RETURN PopContentNoNullFunc(void* p) {
         }
         pTest->Receive(&node);
     }
-    return 0;
 }
 
 //use time
@@ -294,7 +280,7 @@ public:
         return true;
     }
 
-    bool PowerOfTwoThreadCountImpl(uint32_t nThreadCount, LPBASIC_THREAD_START_ROUTINE lpStartAddressPush, LPBASIC_THREAD_START_ROUTINE lpStartAddressPop) {
+    bool PowerOfTwoThreadCountImpl(uint32_t nThreadCount, CCLOCKFREEQUEUE_THREAD_START_ROUTINE lpStartAddressPush, CCLOCKFREEQUEUE_THREAD_START_ROUTINE lpStartAddressPop) {
         bool bRet = true;
         char szBuf[2][32];
         ccsnprintf(szBuf[0], 32, "ThreadCount(%d) Push", nThreadCount);
@@ -332,7 +318,7 @@ public:
         return bRet;
     }
 
-    bool PowerOfTwoThreadCountTest(LPBASIC_THREAD_START_ROUTINE lpStartAddressPush, LPBASIC_THREAD_START_ROUTINE lpStartAddressPop, uint32_t nMaxThreadCount = 8, uint32_t nMinThreadCount = 1) {
+    bool PowerOfTwoThreadCountTest(CCLOCKFREEQUEUE_THREAD_START_ROUTINE lpStartAddressPush, CCLOCKFREEQUEUE_THREAD_START_ROUTINE lpStartAddressPop, uint32_t nMaxThreadCount = 8, uint32_t nMinThreadCount = 1) {
         for (uint32_t nThreadCount = nMinThreadCount; nThreadCount <= nMaxThreadCount; nThreadCount *= 2) {
             if (!PowerOfTwoThreadCountImpl(nThreadCount, lpStartAddressPush, lpStartAddressPop))
                 return false;
