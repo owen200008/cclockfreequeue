@@ -283,11 +283,10 @@ public:
         }
         inline void PushMicroQueue(const T& value, uint32_t nPreWriteIndex) {
             atomic_backoff pause;
-            Circle* pCircle;
+            Circle* pCircle = m_pWrite;
+            atomic_thread_fence(std::memory_order_acquire);
             //判断当前写入环是否可以用
             while(true) {
-                pCircle = m_pWrite;
-                atomic_thread_fence(std::memory_order_acquire);
                 switch (m_pWrite->PushPosition(value, nPreWriteIndex)) {
                 case 0: {
                         return;
@@ -305,16 +304,20 @@ public:
                 }
                 //没有命中，缓存可能更新可能不更新
                 pause.pause();
+                //重读需要判断，是否需要
+                Circle* pNewCircle = m_pWrite;
+                if(pNewCircle != pCircle)
+                    atomic_thread_fence(std::memory_order_acquire);
+                pCircle = pNewCircle;
             }
         }
         inline void PopMicroQueue(T& value, uint32_t nNowReadIndex) {
             atomic_backoff pause;
-            Circle* pReadCircle;
+            Circle* pReadCircle = m_pRead;
+            atomic_thread_fence(std::memory_order_acquire);
             while (true){
-                pReadCircle = m_pRead;
-                atomic_thread_fence(std::memory_order_acquire);
                 switch (pReadCircle->PopPosition(value, nNowReadIndex)) {
-                case 0:{
+                case 0: {
                     return;
                 }
                 case 1: {
@@ -324,11 +327,19 @@ public:
                     }
                     m_pRead = m_pCircle[++m_nReadCircle];
                     pReadCircle->ReleasePool();
+                    pReadCircle = m_pRead;
                     break;
                 }
-                default:
+                default: {
                     pause.pause();
+
+                    //重读需要判断，是否需要
+                    Circle * pNewCircle = m_pRead;
+                    if (pNewCircle != pReadCircle)
+                        atomic_thread_fence(std::memory_order_acquire);
+                    pReadCircle = pNewCircle;
                     break;
+                }
                 }
             }
         }
