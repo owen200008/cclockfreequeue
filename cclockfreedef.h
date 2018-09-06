@@ -4,6 +4,7 @@
 #include <stdlib.h>
 #include <atomic>
 #include <assert.h>
+#include <cstring>
 
 #ifdef _MSC_VER
 #include <windows.h>
