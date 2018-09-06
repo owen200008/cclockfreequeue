@@ -248,7 +248,7 @@ void PopContentNoNullFunc(void* p) {
 }
 
 //use time
-#define PrintUseTime(calcName, totalPerformance)\
+#define PrintLockfreeUseTime(calcName, totalPerformance)\
 [&](DWORD dwUseTime, DWORD dwTotalUseTime){\
     printf("P:%12.3f/ms Time:%5d/%5d F:%s\n", (double)(totalPerformance)/dwTotalUseTime, dwUseTime, dwTotalUseTime, calcName);\
 }
@@ -284,9 +284,9 @@ public:
         bool bRet = true;
         char szBuf[2][32];
         ccsnprintf(szBuf[0], 32, "ThreadCount(%d) Push", nThreadCount);
-        CreateCalcUseTime(begin, PrintUseTime(szBuf[0], m_nMaxCountTimesFast / nThreadCount * m_nRepeatTimes * nThreadCount), false);
+        CreateCalcUseTime(begin, PrintLockfreeUseTime(szBuf[0], m_nMaxCountTimesFast / nThreadCount * m_nRepeatTimes * nThreadCount), false);
         ccsnprintf(szBuf[1], 32, "ThreadCount(%d) Pop", nThreadCount);
-        CreateCalcUseTime(beginrece, PrintUseTime(szBuf[1], m_nMaxCountTimesFast / nThreadCount * m_nRepeatTimes * nThreadCount), false);
+        CreateCalcUseTime(beginrece, PrintLockfreeUseTime(szBuf[1], m_nMaxCountTimesFast / nThreadCount * m_nRepeatTimes * nThreadCount), false);
         RepeatCCContainUnitThread(nThreadCount, m_nMaxCountTimesFast / nThreadCount, [&](CCContainUnitThread<T, Container>* pMgr, uint32_t nReceiveThreadCount) {
             bool bFuncRet = true;
             std::thread* pPushThread = new std::thread[nThreadCount];

@@ -25,9 +25,11 @@ typedef unsigned long DWORD;
 #endif
 
 #ifdef _DEBUG
-#define TIMES_FAST 500000
+#define TIMES_FAST  500000
+#define POW2SIZE    524288
 #else
-#define TIMES_FAST 2000000
+#define TIMES_FAST  2000000
+#define POW2SIZE    2097152
 #endif
 
 

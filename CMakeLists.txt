@@ -61,7 +61,9 @@ set(CMAKE_C_FLAGS ${BasicLibCMakeC_FLAGS})
 #src
 set(basiclib_SOURCES 
 	${BasicLibSrcPath}/cccontaintemplate.h
+    ${BasicLibSrcPath}/cclockfreedef.h
 	${BasicLibSrcPath}/cclockfreequeue.h
+    ${BasicLibSrcPath}/cclockfreefixqueue.h
 	${BasicLibSrcPath}/debug.cpp
 	${BasicLibSrcPath}/debug.h
 	${BasicLibSrcPath}/headdefine.h

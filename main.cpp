@@ -1,4 +1,5 @@
 #include "cclockfreequeue.h"
+#include "cclockfreefixqueue.h"
 #include "lockfreemessagequeue.h"
 #include "debug.h"
 #include "cccontaintemplate.h"
@@ -99,31 +100,50 @@ int main(int argc, char* argv[]){
     if (nHeavyTestTime < 1000)
         nHeavyTestTime = 60 * 1000;
     
-    for(int i = 0;i < 100;i++)
-    {
-        cclockfree::CCLockfreeQueue<ctx_message> basicQueue;
-        printf("/*************************************************************************/\n");
-        printf("Start CCLockfreeQueue\n");
-        for (int i = 0; i < nTimes; i++) {
-            if (!BenchmarkQueue<ctx_message, cclockfree::CCLockfreeQueue<ctx_message>>(basicQueue, nRepeatTimes, nMinThread, nMaxThread)) {
-                printf("check fail!\n");
-                break;
+    for(int i = 0;i < 100;i++){
+        {
+            cclockfree::CCLockfreeQueue<ctx_message> basicQueue;
+            printf("/*************************************************************************/\n");
+            printf("Start CCLockfreeQueue\n");
+            for (int i = 0; i < nTimes; i++) {
+                if (!BenchmarkQueue<ctx_message, cclockfree::CCLockfreeQueue<ctx_message>>(basicQueue, nRepeatTimes, nMinThread, nMaxThread)) {
+                    printf("check fail!\n");
+                    break;
+                }
             }
+            printf("/*************************************************************************/\n");
+            printf("Start CCLockfreeQueue heavy\n");
+            if (!BenchmarkQueueTime<ctx_message, cclockfree::CCLockfreeQueue<ctx_message>>(basicQueue, nHeavyTestTime, nMinThread - 1 == 0 ? 1 : nMinThread - 1, nMinThread)) {
+                printf("check fail!\n");
+            }
+            printf("/*************************************************************************/\n");
         }
-//        printf("/*************************************************************************/\n");
-//        printf("Start CLockFreeMessageQueuePushPop\n");
-//        for (int i = 0; i < nTimes; i++) {
-//            if (!BenchmarkQueue<ctx_message, CLockFreeMessageQueuePushPop>(conMsgQueue, nRepeatTimes, nMinThread, nMaxThread)) {
-//                printf("check fail!\n");
-//                break;
-//            }
-//        }
-        printf("/*************************************************************************/\n");
-        printf("Start CCLockfreeQueue heavy\n");
-        if (!BenchmarkQueueTime<ctx_message, cclockfree::CCLockfreeQueue<ctx_message>>(basicQueue, nHeavyTestTime, nMinThread, nMinThread)) {
-            printf("check fail!\n");
+        {
+            cclockfree::CCLockfreeFixQueue<ctx_message, POW2SIZE>* pBasicQueue = new cclockfree::CCLockfreeFixQueue<ctx_message, POW2SIZE>();
+            printf("/*************************************************************************/\n");
+            printf("Start CCLockfreeFixQueue\n");
+            for (int i = 0; i < nTimes; i++) {
+                if (!BenchmarkQueue<ctx_message, cclockfree::CCLockfreeFixQueue<ctx_message, POW2SIZE>>(*pBasicQueue, nRepeatTimes, nMinThread, nMaxThread)) {
+                    printf("check fail!\n");
+                    break;
+                }
+            }
+            //        printf("/*************************************************************************/\n");
+            //        printf("Start CLockFreeMessageQueuePushPop\n");
+            //        for (int i = 0; i < nTimes; i++) {
+            //            if (!BenchmarkQueue<ctx_message, CLockFreeMessageQueuePushPop>(conMsgQueue, nRepeatTimes, nMinThread, nMaxThread)) {
+            //                printf("check fail!\n");
+            //                break;
+            //            }
+            //        }
+            //printf("/*************************************************************************/\n");
+            //printf("Start CCLockfreeQueue heavy\n");
+            //if (!BenchmarkQueueTime<ctx_message, cclockfree::CCLockfreeQueue<ctx_message>>(basicQueue, nHeavyTestTime, nMinThread, nMinThread)) {
+            //    printf("check fail!\n");
+            //}
+            //printf("/*************************************************************************/\n");
+            delete pBasicQueue;
         }
-        printf("/*************************************************************************/\n");
     }
     
 	getchar();
